@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduGenie – Google Gemini Powered Learning Assistant</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <!-- Background Decorative Elements -->
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <div class="app-container">
+        
+        <!-- Header / Brand Section -->
+        <header class="app-header">
+            <div class="brand-row">
+                <div class="brand-badge">
+                    <span class="sparkle-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <span>AI Learning Companion</span>
+                </div>
+                <div class="status-indicator {% if api_key_configured %}status-active{% else %}status-warning{% endif %}" id="statusIndicator">
+                    <span class="status-dot"></span>
+                    <span id="statusText">{% if api_key_configured %}Gemini AI Connected{% else %}API Key Needed in .env{% endif %}</span>
+                </div>
+            </div>
+
+            <h1 class="app-title">Edu<span>Genie</span></h1>
+            <p class="app-subtitle">Your personal AI learning assistant powered by Google Gemini. Ask questions, understand complex topics, generate custom quizzes, summarize study notes, and build step-by-step learning roadmaps.</p>
+        </header>
+
+        <!-- Main Card Interface -->
+        <main class="main-card">
+            
+            <!-- Task Selection Bar -->
+            <div class="task-selector-wrapper">
+                <div class="selector-header">
+                    <label for="taskDropdown" class="form-label">
+                        <i class="fa-solid fa-list-check"></i> Select Learning Task:
+                    </label>
+                    <span class="keyboard-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit</span>
+                </div>
+
+                <!-- Dropdown (As requested) -->
+                <div class="dropdown-wrapper">
+                    <select id="taskDropdown" class="task-dropdown" aria-label="Select AI Learning Task">
+                        <option value="explain" selected>💡 Explain Concept – Simple beginner explanations</option>
+                        <option value="qa">❓ Q&amp;A – Ask academic &amp; general questions</option>
+                        <option value="quiz">📝 Quiz – Generate 3 interactive MCQs</option>
+                        <option value="summarize">📄 Summary – Summarize long text &amp; notes</option>
+                        <option value="learn">🗺️ Recommend Path – Beginner to Advanced roadmap</option>
+                    </select>
+                </div>
+
+                <!-- Interactive Feature Pills for Fast Switching -->
+                <div class="task-pills" id="taskPills">
+                    <button type="button" class="pill active" data-task="explain">
+                        <i class="fa-solid fa-lightbulb"></i> Explain
+                    </button>
+                    <button type="button" class="pill" data-task="qa">
+                        <i class="fa-solid fa-circle-question"></i> Q&amp;A
+                    </button>
+                    <button type="button" class="pill" data-task="quiz">
+                        <i class="fa-solid fa-clipboard-question"></i> Quiz
+                    </button>
+                    <button type="button" class="pill" data-task="summarize">
+                        <i class="fa-solid fa-file-lines"></i> Summary
+                    </button>
+                    <button type="button" class="pill" data-task="learn">
+                        <i class="fa-solid fa-route"></i> Recommend Path
+                    </button>
+                </div>
+            </div>
+
+            <!-- Input Form Section -->
+            <form id="eduForm" class="edu-form" onsubmit="return false;">
+                
+                <div class="input-header-row">
+                    <label for="userInput" class="form-label" id="inputLabel">
+                        <i class="fa-solid fa-pen-nib"></i> What would you like to explain?
+                    </label>
+                    <button type="button" class="clear-btn" id="clearBtn" title="Clear input">
+                        <i class="fa-solid fa-eraser"></i> Clear
+                    </button>
+                </div>
+
+                <!-- Text Area Input -->
+                <div class="textarea-container">
+                    <textarea 
+                        id="userInput" 
+                        class="user-textarea" 
+                        rows="5" 
+                        placeholder="e.g. Explain artificial intelligence in simple terms..." 
+                        required
+                    ></textarea>
+                </div>
+
+                <!-- Quick Prompt Suggestions (Chips) -->
+                <div class="suggestions-row" id="suggestionsRow">
+                    <span class="suggestion-label"><i class="fa-regular fa-lightbulb"></i> Try:</span>
+                    <div class="chips-container" id="chipsContainer">
+                        <!-- Dynamically filled by JS -->
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="samplePromptBtn">
+                        <i class="fa-solid fa-shuffle"></i> Surprise Topic
+                    </button>
+                    
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span class="btn-text">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate with EduGenie
+                        </span>
+                        <div class="spinner" id="btnSpinner" style="display: none;"></div>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Notification / Error Banner -->
+            <div class="alert-banner" id="alertBanner" style="display: none;">
+                <div class="alert-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+                <div class="alert-content">
+                    <h4 id="alertTitle">Notice</h4>
+                    <p id="alertMessage">Message details will appear here.</p>
+                </div>
+                <button type="button" class="alert-close" id="alertCloseBtn">&times;</button>
+            </div>
+
+            <!-- Loading Skeleton State -->
+            <div class="loading-container" id="loadingContainer" style="display: none;">
+                <div class="loading-card">
+                    <div class="loading-magic-icon">
+                        <i class="fa-solid fa-atom fa-spin"></i>
+                    </div>
+                    <h3 id="loadingStatusText">EduGenie is thinking...</h3>
+                    <p class="loading-subtext">Consulting Google Gemini AI to prepare your educational response.</p>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Section (Appears on same page) -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="result-card">
+                    
+                    <div class="result-header">
+                        <div class="result-badge" id="resultBadge">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            <span id="resultTaskName">Explanation</span>
+                        </div>
+                        <div class="result-actions">
+                            <button type="button" class="icon-btn" id="copyBtn" title="Copy response to clipboard">
+                                <i class="fa-regular fa-copy"></i>
+                                <span id="copyText">Copy</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Regular Markdown Content Container -->
+                    <div class="result-body markdown-content" id="markdownResult">
+                        <!-- Formatted AI output rendered here -->
+                    </div>
+
+                    <!-- Interactive Quiz Container (Only used for Quiz task) -->
+                    <div class="quiz-container" id="quizContainer" style="display: none;">
+                        <div class="quiz-score-bar" id="quizScoreBar">
+                            <div class="score-info">
+                                <i class="fa-solid fa-star"></i>
+                                <span>Quiz Progress: <strong id="scoreCount">0</strong> of <strong id="totalCount">3</strong> Answered</span>
+                            </div>
+                            <button type="button" class="reset-quiz-btn" id="resetQuizBtn">
+                                <i class="fa-solid fa-rotate-left"></i> Reset Quiz
+                            </button>
+                        </div>
+                        <div class="quiz-questions-list" id="quizQuestionsList">
+                            <!-- Dynamic interactive quiz questions -->
+                        </div>
+                    </div>
+
+                    <div class="result-footer">
+                        <span class="footer-note" id="modelNote">
+                            <i class="fa-solid fa-bolt"></i> Generated by Google Gemini AI
+                        </span>
+                        <a href="#userInput" class="back-to-top-link" id="newQueryLink">
+                            <i class="fa-solid fa-arrow-up"></i> Ask Another Question
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Student Features Reference Grid -->
+        <footer class="app-features-grid">
+            <div class="feature-item" onclick="selectTask('qa')">
+                <div class="feature-icon"><i class="fa-solid fa-circle-question"></i></div>
+                <h4>Instant Q&amp;A</h4>
+                <p>Get concise academic explanations for doubts and homework.</p>
+            </div>
+            <div class="feature-item" onclick="selectTask('explain')">
+                <div class="feature-icon"><i class="fa-solid fa-lightbulb"></i></div>
+                <h4>Feynman Explain</h4>
+                <p>Demystify difficult concepts with beginner analogies.</p>
+            </div>
+            <div class="feature-item" onclick="selectTask('quiz')">
+                <div class="feature-icon"><i class="fa-solid fa-clipboard-question"></i></div>
+                <h4>3-MCQ Quizzer</h4>
+                <p>Test your knowledge with instant answers and explanations.</p>
+            </div>
+            <div class="feature-item" onclick="selectTask('summarize')">
+                <div class="feature-icon"><i class="fa-solid fa-file-lines"></i></div>
+                <h4>Smart Notes</h4>
+                <p>Compress textbook chapters into high-yield revision points.</p>
+            </div>
+            <div class="feature-item" onclick="selectTask('learn')">
+                <div class="feature-icon"><i class="fa-solid fa-route"></i></div>
+                <h4>Roadmaps</h4>
+                <p>Follow structured step-by-step guides from Beginner to Pro.</p>
+            </div>
+        </footer>
+
+        <!-- Copyright & Student Note -->
+        <div class="bottom-footer">
+            <p>EduGenie – Built with FastAPI &amp; Google Gemini | Educational Project</p>
+        </div>
+
+    </div>
+
+    <!-- Frontend Interactive Script -->
+    <script>
+        // Task metadata definitions
+        const TASK_CONFIGS = {
+            explain: {
+                endpoint: "/explain",
+                payloadKey: "topic",
+                badgeName: "Concept Explanation",
+                badgeIcon: "fa-lightbulb",
+                inputLabel: "What concept or topic would you like explained simply?",
+                placeholder: "e.g. Explain how blockchain works, or what is quantum computing in plain English...",
+                loadingText: "EduGenie is simplifying this concept for you...",
+                samples: [
+                    "Explain Artificial Intelligence in simple terms",
+                    "How does photosynthesis work?",
+                    "What is recursion in computer programming?",
+                    "Explain gravity using an everyday analogy"
+                ]
+            },
+            qa: {
+                endpoint: "/qa",
+                payloadKey: "question",
+                badgeName: "Q&A Answer",
+                badgeIcon: "fa-circle-question",
+                inputLabel: "What is your question?",
+                placeholder: "e.g. What is the difference between speed and velocity?",
+                loadingText: "EduGenie is drafting a clear educational answer...",
+                samples: [
+                    "What is the difference between DNA and RNA?",
+                    "Why is the sky blue during the day?",
+                    "What caused the Industrial Revolution?",
+                    "How do vaccines help the human immune system?"
+                ]
+            },
+            quiz: {
+                endpoint: "/quiz",
+                payloadKey: "topic_or_text",
+                badgeName: "3-Question Practice Quiz",
+                badgeIcon: "fa-clipboard-question",
+                inputLabel: "Enter a topic or paste study notes to generate a quiz:",
+                placeholder: "e.g. Python Loops, World War 2, Cellular Respiration, or paste your textbook paragraph...",
+                loadingText: "EduGenie is generating 3 multiple-choice questions...",
+                samples: [
+                    "Python Data Structures (Lists, Tuples, Dictionaries)",
+                    "The Solar System and Planets",
+                    "Newton's Three Laws of Motion",
+                    "Database Normalization and SQL"
+                ]
+            },
+            summarize: {
+                endpoint: "/summarize",
+                payloadKey: "text",
+                badgeName: "Educational Summary",
+                badgeIcon: "fa-file-lines",
+                inputLabel: "Paste long educational text or lecture notes to summarize:",
+                placeholder: "Paste an article, paragraph, or lesson content here (at least a couple of sentences)...",
+                loadingText: "EduGenie is extracting the key concepts and revision points...",
+                samples: [
+                    "Photosynthesis is the biological process by which green plants and certain other organisms transform light energy into chemical energy. During photosynthesis in green plants, light energy is captured and used to convert water, carbon dioxide, and minerals into oxygen and energy-rich organic compounds like glucose. This process is essential for all life on Earth as it provides oxygen and forms the base of the food chain.",
+                    "The French Revolution was a period of major social and political upheaval in France that began with the Estates General of 1789 and ended with the formation of the French Consulate in November 1799. Many of its ideas are considered fundamental principles of liberal democracy, including liberty, equality, and fraternity."
+                ]
+            },
+            learn: {
+                endpoint: "/learn/recommendations",
+                payloadKey: "topic",
+                badgeName: "Learning Roadmap",
+                badgeIcon: "fa-route",
+                inputLabel: "Which skill or topic do you want a structured roadmap for?",
+                placeholder: "e.g. SQL, Machine Learning, Web Development, Organic Chemistry, Cyber Security...",
+                loadingText: "EduGenie is organizing a Beginner to Advanced learning path...",
+                samples: [
+                    "SQL and Database Management",
+                    "Full Stack Web Development",
+                    "Machine Learning with Python",
+                    "Cyber Security & Ethical Hacking"
+                ]
+            }
+        };
+
+        // DOM Element references
+        const taskDropdown = document.getElementById("taskDropdown");
+        const taskPills = document.getElementById("taskPills");
+        const userInput = document.getElementById("userInput");
+        const inputLabel = document.getElementById("inputLabel");
+        const chipsContainer = document.getElementById("chipsContainer");
+        const submitBtn = document.getElementById("submitBtn");
+        const btnSpinner = document.getElementById("btnSpinner");
+        const clearBtn = document.getElementById("clearBtn");
+        const samplePromptBtn = document.getElementById("samplePromptBtn");
+        const alertBanner = document.getElementById("alertBanner");
+        const alertTitle = document.getElementById("alertTitle");
+        const alertMessage = document.getElementById("alertMessage");
+        const alertCloseBtn = document.getElementById("alertCloseBtn");
+        const loadingContainer = document.getElementById("loadingContainer");
+        const loadingStatusText = document.getElementById("loadingStatusText");
+        const resultSection = document.getElementById("resultSection");
+        const markdownResult = document.getElementById("markdownResult");
+        const quizContainer = document.getElementById("quizContainer");
+        const quizQuestionsList = document.getElementById("quizQuestionsList");
+        const resultTaskName = document.getElementById("resultTaskName");
+        const resultBadge = document.getElementById("resultBadge");
+        const copyBtn = document.getElementById("copyBtn");
+        const copyText = document.getElementById("copyText");
+        const modelNote = document.getElementById("modelNote");
+        const resetQuizBtn = document.getElementById("resetQuizBtn");
+        const scoreCount = document.getElementById("scoreCount");
+
+        let currentTask = "explain";
+        let currentQuizData = null;
+        let lastRawResult = "";
+
+        // Synchronize Task Selection (Dropdown + Pills)
+        function selectTask(taskKey) {
+            if (!TASK_CONFIGS[taskKey]) return;
+            currentTask = taskKey;
+            taskDropdown.value = taskKey;
+
+            // Update active pill UI
+            document.querySelectorAll(".pill").forEach(pill => {
+                pill.classList.toggle("active", pill.dataset.task === taskKey);
+            });
+
+            // Update input label, placeholder, and suggestions
+            const config = TASK_CONFIGS[taskKey];
+            inputLabel.innerHTML = `<i class="fa-solid ${config.badgeIcon}"></i> ${config.inputLabel}`;
+            userInput.placeholder = config.placeholder;
+            
+            renderSuggestionChips(config.samples);
+            hideAlert();
+        }
+
+        // Render suggestion chips
+        function renderSuggestionChips(samples) {
+            chipsContainer.innerHTML = "";
+            samples.forEach(sample => {
+                const chip = document.createElement("button");
+                chip.type = "button";
+                chip.className = "chip";
+                // Shorten chip label if long text
+                chip.textContent = sample.length > 50 ? sample.substring(0, 48) + "..." : sample;
+                chip.title = sample;
+                chip.addEventListener("click", () => {
+                    userInput.value = sample;
+                    userInput.focus();
+                });
+                chipsContainer.appendChild(chip);
+            });
+        }
+
+        // Handle dropdown change
+        taskDropdown.addEventListener("change", (e) => {
+            selectTask(e.target.value);
+        });
+
+        // Handle pill button clicks
+        taskPills.addEventListener("click", (e) => {
+            const pill = e.target.closest(".pill");
+            if (pill && pill.dataset.task) {
+                selectTask(pill.dataset.task);
+            }
+        });
+
+        // Clear input button
+        clearBtn.addEventListener("click", () => {
+            userInput.value = "";
+            userInput.focus();
+        });
+
+        // Random sample topic button
+        samplePromptBtn.addEventListener("click", () => {
+            const samples = TASK_CONFIGS[currentTask].samples;
+            const randomSample = samples[Math.floor(Math.random() * samples.length)];
+            userInput.value = randomSample;
+            userInput.focus();
+        });
+
+        // Close alert banner
+        alertCloseBtn.addEventListener("click", hideAlert);
+
+        function showAlert(title, message, isError = true) {
+            alertTitle.textContent = title;
+            alertMessage.innerHTML = message;
+            alertBanner.className = isError ? "alert-banner alert-error" : "alert-banner alert-info";
+            alertBanner.style.display = "flex";
+            alertBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+
+        function hideAlert() {
+            alertBanner.style.display = "none";
+        }
+
+        // Copy to clipboard handler
+        copyBtn.addEventListener("click", async () => {
+            if (!lastRawResult) return;
+            try {
+                await navigator.clipboard.writeText(lastRawResult);
+                copyText.textContent = "Copied!";
+                copyBtn.classList.add("copied");
+                setTimeout(() => {
+                    copyText.textContent = "Copy";
+                    copyBtn.classList.remove("copied");
+                }, 2000);
+            } catch (err) {
+                console.error("Copy failed:", err);
+            }
+        });
+
+        // Keyboard Shortcut: Ctrl + Enter or Cmd + Enter to submit
+        userInput.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                handleSubmit();
+            }
+        });
+
+        document.getElementById("eduForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            handleSubmit();
+        });
+
+        // Main Submit Handler
+        async function handleSubmit() {
+            const textValue = userInput.value.trim();
+            if (!textValue) {
+                showAlert("Input Required", "Please enter a question, topic, or study text before submitting.");
+                userInput.focus();
+                return;
+            }
+
+            hideAlert();
+            const config = TASK_CONFIGS[currentTask];
+
+            // Show Loading State
+            submitBtn.disabled = true;
+            btnSpinner.style.display = "inline-block";
+            loadingStatusText.textContent = config.loadingText;
+            loadingContainer.style.display = "block";
+            resultSection.style.display = "none";
+            loadingContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+            // Prepare request payload
+            const payload = {
+                input_text: textValue,
+                [config.payloadKey]: textValue
+            };
+
+            try {
+                const response = await fetch(config.endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.status === "error") {
+                    const errMsg = data.message || data.detail || "An unexpected error occurred while communicating with the AI backend.";
+                    showAlert("Request Failed", errMsg, true);
+                    return;
+                }
+
+                // Render Successful Response
+                displayResult(data, currentTask);
+
+            } catch (networkError) {
+                console.error("Fetch Error:", networkError);
+                showAlert(
+                    "Network Connection Error",
+                    "Could not connect to the EduGenie server. Make sure your FastAPI backend is running via <code>uvicorn main:app --reload</code>.",
+                    true
+                );
+            } finally {
+                submitBtn.disabled = false;
+                btnSpinner.style.display = "none";
+                loadingContainer.style.display = "none";
+            }
+        }
+
+        // Render AI Results into UI
+        function displayResult(responsePayload, taskType) {
+            const config = TASK_CONFIGS[taskType];
+            resultTaskName.textContent = config.badgeName;
+            resultBadge.querySelector("i").className = `fa-solid ${config.badgeIcon}`;
+
+            if (responsePayload.model_used) {
+                modelNote.innerHTML = `<i class="fa-solid fa-bolt"></i> Generated by ${responsePayload.model_used}`;
+            }
+
+            if (taskType === "quiz") {
+                // Quiz task renders interactive MCQ cards
+                markdownResult.style.display = "none";
+                quizContainer.style.display = "block";
+                currentQuizData = responsePayload.data;
+                renderInteractiveQuiz(currentQuizData);
+                lastRawResult = JSON.stringify(currentQuizData, null, 2);
+            } else {
+                // Text/Markdown rendering for Q&A, Explain, Summary, Learning Path
+                quizContainer.style.display = "none";
+                markdownResult.style.display = "block";
+                
+                const rawContent = responsePayload.data || "";
+                lastRawResult = rawContent;
+
+                // Configure marked options
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true,
+                    highlight: function(code, lang) {
+                        const language = highlight.getLanguage(lang) ? lang : 'plaintext';
+                        return highlight.highlight(code, { language }).value;
+                    }
+                });
+
+                markdownResult.innerHTML = marked.parse(rawContent);
+                // Apply syntax highlighting
+                markdownResult.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            }
+
+            resultSection.style.display = "block";
+            resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        // Render interactive Quiz UI with immediate feedback
+        function renderInteractiveQuiz(questions) {
+            quizQuestionsList.innerHTML = "";
+            scoreCount.textContent = "0";
+            document.getElementById("totalCount").textContent = questions.length;
+
+            let answeredMap = {};
+
+            questions.forEach((q, qIndex) => {
+                const qCard = document.createElement("div");
+                qCard.className = "quiz-question-card";
+                qCard.dataset.qid = q.id || (qIndex + 1);
+
+                const qTitle = document.createElement("h3");
+                qTitle.className = "quiz-question-title";
+                qTitle.innerHTML = `<span class="q-number">Q${qIndex + 1}</span> ${escapeHtml(q.question)}`;
+                qCard.appendChild(qTitle);
+
+                const optionsGrid = document.createElement("div");
+                optionsGrid.className = "quiz-options-grid";
+
+                const explanationBox = document.createElement("div");
+                explanationBox.className = "quiz-explanation-box";
+                explanationBox.style.display = "none";
+
+                q.options.forEach((optText, optIndex) => {
+                    const optBtn = document.createElement("button");
+                    optBtn.type = "button";
+                    optBtn.className = "quiz-option-btn";
+                    
+                    const optLetter = String.fromCharCode(65 + optIndex);
+                    optBtn.innerHTML = `
+                        <span class="opt-letter">${optLetter}</span>
+                        <span class="opt-text">${escapeHtml(optText)}</span>
+                        <span class="opt-status-icon"></span>
+                    `;
+
+                    optBtn.addEventListener("click", () => {
+                        if (answeredMap[qIndex]) return; // prevent multiple guesses
+                        answeredMap[qIndex] = true;
+
+                        // Check correctness
+                        const cleanedCorrect = (q.correct_answer || "").trim().toLowerCase();
+                        const cleanedSelected = optText.trim().toLowerCase();
+                        const isLetterMatch = cleanedCorrect === optLetter.toLowerCase();
+                        const isTextMatch = cleanedCorrect === cleanedSelected || cleanedCorrect.includes(cleanedSelected) || cleanedSelected.includes(cleanedCorrect);
+
+                        const isCorrect = isLetterMatch || isTextMatch;
+
+                        // Disable all sibling options and mark them
+                        const allOptButtons = optionsGrid.querySelectorAll(".quiz-option-btn");
+                        allOptButtons.forEach((btn, idx) => {
+                            btn.disabled = true;
+                            const curText = q.options[idx].trim().toLowerCase();
+                            const curLetter = String.fromCharCode(65 + idx).toLowerCase();
+                            
+                            const thisIsCorrect = (curLetter === cleanedCorrect) || (cleanedCorrect === curText) || (cleanedCorrect.includes(curText));
+                            if (thisIsCorrect) {
+                                btn.classList.add("is-correct");
+                                btn.querySelector(".opt-status-icon").innerHTML = '<i class="fa-solid fa-check"></i>';
+                            }
+                        });
+
+                        if (!isCorrect) {
+                            optBtn.classList.add("is-wrong");
+                            optBtn.querySelector(".opt-status-icon").innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                        }
+
+                        // Display explanation
+                        explanationBox.innerHTML = `
+                            <div class="explanation-badge ${isCorrect ? 'badge-correct' : 'badge-wrong'}">
+                                <i class="fa-solid ${isCorrect ? 'fa-circle-check' : 'fa-circle-info'}"></i>
+                                ${isCorrect ? 'Correct! Well done.' : 'Not quite. Here is why:'}
+                            </div>
+                            <p class="explanation-text">${escapeHtml(q.explanation || 'Review the topic for deeper understanding.')}</p>
+                        `;
+                        explanationBox.style.display = "block";
+
+                        // Update score counter
+                        scoreCount.textContent = Object.keys(answeredMap).length;
+                    });
+
+                    optionsGrid.appendChild(optBtn);
+                });
+
+                qCard.appendChild(optionsGrid);
+                qCard.appendChild(explanationBox);
+                quizQuestionsList.appendChild(qCard);
+            });
+        }
+
+        // Reset Quiz Button
+        resetQuizBtn.addEventListener("click", () => {
+            if (currentQuizData) {
+                renderInteractiveQuiz(currentQuizData);
+            }
+        });
+
+        // HTML Escaper helper
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize default view
+        selectTask("explain");
+    </script>
+</body>
+</html>
